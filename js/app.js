@@ -17,7 +17,8 @@
      3. Add one line to the ROUTES table below */
 
 import { getSession, endSession } from './session.js';
-import { getCampById } from './store.js';
+import { getCampById, connectToCamp, disconnect, whenDataChanges } from './store.js';
+import { waitForAuthReady, signOutUser, currentUser } from './auth.js';
 import { escapeHtml } from './ui.js';
 
 import * as loginView from './views/login.js';
@@ -59,10 +60,19 @@ function currentPath() {
   return window.location.hash.slice(1) || '/login';
 }
 
-function render() {
-  const session = getSession();
+async function render() {
   const path = currentPath();
   const route = ROUTES[path];
+
+  /* A session saved in this tab only counts if Firebase still has us signed
+     in. They can disagree after the login expires, and Firestore would then
+     refuse every request — so treat that as signed out. */
+  let session = getSession();
+  if (session && !currentUser()) {
+    endSession();
+    disconnect();
+    session = null;
+  }
 
   // Unknown address — send them somewhere real.
   if (!route) {
@@ -86,6 +96,28 @@ function render() {
   drawHeader(session, path);
 
   const root = document.getElementById('view');
+
+  /* Signed-in screens need the camp's data before they can draw anything.
+     The first visit downloads it; after that connectToCamp returns straight
+     away, so this only shows the loading message once. */
+  if (session) {
+    root.innerHTML = '<div class="page"><div class="empty">Loading…</div></div>';
+    try {
+      await connectToCamp(session.campId);
+    } catch (error) {
+      root.innerHTML = `
+        <div class="page">
+          <div class="empty">
+            <div class="empty-title">Couldn't reach the database</div>
+            <p class="muted">Check your internet connection and reload the page.</p>
+          </div>
+        </div>
+      `;
+      console.error(error);
+      return;
+    }
+  }
+
   root.innerHTML = '';
   route.view.render(root, session);
   window.scrollTo(0, 0);
@@ -109,9 +141,12 @@ function drawHeader(session, path) {
     </div>
   `;
 
-  document.getElementById('sign-out')?.addEventListener('click', () => {
+  document.getElementById('sign-out')?.addEventListener('click', async () => {
     endSession();
+    disconnect();
+    await signOutUser();
     go('/login');
+    render();
   });
 
   // The nav bar is for staff only — parents have a single screen.
@@ -136,5 +171,19 @@ function drawHeader(session, path) {
   }
 }
 
+/* When another device changes something — a parent deposits from home while
+   the canteen laptop is open — Firestore tells us, and we redraw so the
+   screen is never showing a stale balance. */
+whenDataChanges(() => {
+  if (getSession()) render();
+});
+
 window.addEventListener('hashchange', render);
-render();
+
+/* On a page refresh, Firebase takes a moment to work out whether someone is
+   still signed in. Drawing before that finishes would bounce a signed-in
+   person back to the login screen, so wait for the answer first. */
+document.getElementById('view').innerHTML =
+  '<div class="page"><div class="empty">Loading…</div></div>';
+
+waitForAuthReady().then(render);

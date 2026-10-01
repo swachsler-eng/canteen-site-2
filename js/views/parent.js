@@ -26,6 +26,7 @@ import {
   emptyState,
   parseAmount,
 } from '../ui.js';
+import { MAX_PARENT_DEPOSIT, exceedsDepositLimit } from '../money.js';
 
 // Whose history is showing: 'all' for the whole family, or a camper's id.
 let historyFilter = 'all';
@@ -178,7 +179,9 @@ export function render(root, session) {
         <label class="field">
           <span class="field-label">Amount</span>
           <input class="input" name="amount" type="number" step="0.01" min="0.01"
-                 placeholder="0.00" autocomplete="off" />
+                 max="${MAX_PARENT_DEPOSIT}" placeholder="0.00" autocomplete="off" />
+          <span class="muted">Up to ${money(MAX_PARENT_DEPOSIT)} at a time. Need to add
+            more? Contact the camp office.</span>
         </label>
 
         <p class="form-error hidden" id="deposit-error"></p>
@@ -208,6 +211,16 @@ export function render(root, session) {
 
       if (amount === null) {
         errorLine.textContent = 'Enter an amount greater than zero.';
+        errorLine.classList.remove('hidden');
+        return;
+      }
+
+      // The database enforces this too; checking here just gives a clearer
+      // message than a refused request would.
+      if (exceedsDepositLimit(amount)) {
+        errorLine.textContent =
+          `${money(MAX_PARENT_DEPOSIT)} is the most you can add at once. ` +
+          'Contact the camp office for a larger amount.';
         errorLine.classList.remove('hidden');
         return;
       }
@@ -252,8 +265,12 @@ export function render(root, session) {
 
     box.querySelector('#cancel-confirm').addEventListener('click', close);
 
-    confirmButton.addEventListener('click', () => {
-      depositToCamper(camper.id, amount);
+    confirmButton.addEventListener('click', async () => {
+      confirmButton.disabled = true;
+      confirmButton.textContent = 'Adding…';
+
+      await depositToCamper(camper.id, amount);
+
       close();
       toast(`${money(amount)} added to ${camper.firstName}'s balance.`);
       draw();

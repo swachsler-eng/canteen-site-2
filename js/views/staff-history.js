@@ -181,7 +181,7 @@ export function render(root, session) {
     });
     if (!confirmed) return;
 
-    const result = voidTransaction(txId);
+    const result = await voidTransaction(txId);
     if (!result.ok) {
       toast(result.reason, { error: true });
     } else {

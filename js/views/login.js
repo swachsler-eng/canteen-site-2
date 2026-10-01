@@ -1,9 +1,11 @@
 /* Sign-in screen — both staff and parents start here.
 
-   Staff sign in with their camp's shared password.
-   Parents sign in with their family code; there is no parent username. */
+   Staff sign in with their camp's shared password, which Firebase checks on
+   Google's servers. Parents sign in with their family code; there is no
+   parent username and no parent password. */
 
-import { getAllCamps, verifyCampLogin, getCampersByFamilyCode } from '../store.js';
+import { getAllCamps, connectToCamp, getCampersByFamilyCode } from '../store.js';
+import { signInStaff, signInParent, signOutUser } from '../auth.js';
 import { startStaffSession, startParentSession } from '../session.js';
 import { go } from '../app.js';
 import { escapeHtml } from '../ui.js';
@@ -54,18 +56,10 @@ export function render(root) {
 
           <p class="form-error hidden" id="login-error"></p>
 
-          <button class="btn btn-primary btn-block" type="submit">
+          <button class="btn btn-primary btn-block" type="submit" id="login-submit">
             ${mode === 'staff' ? 'Sign in' : 'View my campers'}
           </button>
         </form>
-
-        <!-- Demo credentials. Delete this block once real camps are set up. -->
-        <div class="login-hint">
-          <strong>Demo logins —</strong>
-          Camp Pinecrest staff password <code>pine2026</code>,
-          Camp Lakeside staff password <code>lake2026</code>.
-          Parent family code <code>RIV201</code> at Pinecrest.
-        </div>
       </div>
     </div>
   `;
@@ -80,23 +74,32 @@ export function render(root) {
 
   const form = root.querySelector('#login-form');
   const errorLine = root.querySelector('#login-error');
+  const submitButton = root.querySelector('#login-submit');
+  const originalLabel = submitButton.textContent.trim();
 
   const showError = (message) => {
     errorLine.textContent = message;
     errorLine.classList.remove('hidden');
+    submitButton.disabled = false;
+    submitButton.textContent = originalLabel;
   };
 
-  form.addEventListener('submit', (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
     errorLine.classList.add('hidden');
 
+    // Signing in goes over the network, so disable the button to stop
+    // impatient double-clicks firing two attempts.
+    submitButton.disabled = true;
+    submitButton.textContent = 'Signing in…';
+
     const data = new FormData(form);
-    const campId = data.get('campId');
+    const campId = String(data.get('campId'));
 
     if (mode === 'staff') {
-      const password = String(data.get('password') || '');
-      if (!verifyCampLogin(campId, password)) {
-        showError('That password does not match this camp.');
+      const result = await signInStaff(campId, String(data.get('password') || ''));
+      if (!result.ok) {
+        showError(result.reason);
         return;
       }
       startStaffSession(campId);
@@ -104,14 +107,32 @@ export function render(root) {
       return;
     }
 
+    /* Parents: sign in anonymously first, because we can't read the camp's
+       campers to check the family code until Firebase trusts us at all. */
     const familyCode = String(data.get('familyCode') || '').trim();
     if (!familyCode) {
       showError('Enter your family code.');
       return;
     }
-    // A family code is only valid if it actually has campers attached to it
-    // at the chosen camp.
+
+    const result = await signInParent();
+    if (!result.ok) {
+      showError(result.reason);
+      return;
+    }
+
+    try {
+      await connectToCamp(campId);
+    } catch (error) {
+      console.error(error);
+      showError("Couldn't reach the camp's records. Check your connection.");
+      return;
+    }
+
+    // A code is only valid if campers are actually attached to it.
     if (getCampersByFamilyCode(campId, familyCode).length === 0) {
+      // Don't leave them signed in anonymously after a failed attempt.
+      await signOutUser();
       showError('No campers found for that code at this camp.');
       return;
     }

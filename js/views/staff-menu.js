@@ -105,7 +105,7 @@ export function render(root, session) {
     const errorLine = box.querySelector('#item-error');
     box.querySelector('#cancel-item').addEventListener('click', close);
 
-    box.querySelector('#item-form').addEventListener('submit', (event) => {
+    box.querySelector('#item-form').addEventListener('submit', async (event) => {
       event.preventDefault();
       const data = new FormData(event.target);
       const name = String(data.get('name')).trim();
@@ -123,10 +123,10 @@ export function render(root, session) {
       }
 
       if (isEdit) {
-        updateMenuItem(item.id, { name, price });
+        await updateMenuItem(item.id, { name, price });
         toast(`${name} updated.`);
       } else {
-        addMenuItem({ campId, name, price });
+        await addMenuItem({ name, price });
         toast(`${name} added to the menu.`);
       }
 
@@ -145,7 +145,7 @@ export function render(root, session) {
     });
     if (!confirmed) return;
 
-    deleteMenuItem(item.id);
+    await deleteMenuItem(item.id);
     toast(`${item.name} removed from the menu.`);
     draw();
   }

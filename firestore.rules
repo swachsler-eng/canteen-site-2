@@ -1,0 +1,110 @@
+/* ======================================================================
+   SECURITY RULES
+
+   These run on Google's servers and decide what any request to the
+   database is allowed to do. They are the real protection for this app.
+
+   The rules in the JavaScript — "a balance can't go negative", "parents
+   can only add funds" — are there so the app behaves sensibly. But anyone
+   can edit JavaScript in their own browser, so those can be bypassed.
+   These rules cannot.
+
+   HOW TO INSTALL THEM
+     Firebase console -> Firestore Database -> Rules tab
+     Paste this whole file in, replacing what's there, then Publish.
+
+   WHO IS WHO
+     Staff   are signed in with an email, <campId>@camp.invalid
+     Parents are signed in anonymously, with no email at all
+   ====================================================================== */
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Signed in at all — staff or parent.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Signed in as the staff account belonging to THIS camp. One camp's
+    // staff can never touch another camp's records.
+    function isStaffOf(campId) {
+      return isSignedIn()
+        && request.auth.token.email == campId + '@camp.invalid';
+    }
+
+    // Which fields a write is trying to change.
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    /* A parent adding money to a balance.
+
+       Three conditions, all required:
+         - the balance is the ONLY field being touched
+         - it goes UP (parents can never withdraw — this is the hard rule)
+         - by no more than the cap
+
+       The cap is here because the database can only see that a number
+       rose, not that real money arrived. It limits what someone editing
+       their own browser could award themselves. It disappears once a
+       payment provider handles deposits.
+
+       KEEP THIS NUMBER THE SAME AS MAX_PARENT_DEPOSIT IN js/money.js */
+    function isParentDeposit() {
+      return isSignedIn()
+        && changedKeys().hasOnly(['balance'])
+        && request.resource.data.balance > resource.data.balance
+        && request.resource.data.balance <= resource.data.balance + 200;
+    }
+
+    match /camps/{campId} {
+
+      /* ---- campers ---- */
+      match /campers/{camperId} {
+        // Everyone signed in can read. Which campers a parent is shown is
+        // decided by the family code they typed, in the app itself.
+        allow read: if isSignedIn();
+
+        // Only staff add or remove campers.
+        allow create, delete: if isStaffOf(campId);
+
+        // Staff can change anything; parents only a deposit.
+        allow update: if isStaffOf(campId) || isParentDeposit();
+      }
+
+      /* ---- menu items ---- */
+      match /menuItems/{itemId} {
+        allow read: if isSignedIn();
+        allow write: if isStaffOf(campId);
+      }
+
+      /* ---- transaction history ---- */
+      match /transactions/{txId} {
+        allow read: if isSignedIn();
+
+        // Staff record anything. A parent may only record their own
+        // deposit, and only a positive one within the cap.
+        allow create: if isStaffOf(campId)
+          || (isSignedIn()
+              && request.resource.data.type == 'parent_deposit'
+              && request.resource.data.amount > 0
+              && request.resource.data.amount <= 200);
+
+        // Only staff mark a transaction as voided, and only that field.
+        allow update: if isStaffOf(campId)
+          && changedKeys().hasOnly(['voidedBy']);
+
+        /* History is never deleted, by anyone, ever. Voiding writes a
+           correcting entry alongside the original instead — that's what
+           keeps the camp's records honest. */
+        allow delete: if false;
+      }
+    }
+
+    /* Anything not matched above is refused. A rule has to grant access
+       explicitly, so a collection nobody wrote a rule for is closed. */
+  }
+}

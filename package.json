@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node serve.mjs",
-    "test": "node test-store.mjs",
+    "test": "node test-money.mjs",
     "screenshot": "node screenshot.mjs http://localhost:3000"
   },
   "license": "ISC",

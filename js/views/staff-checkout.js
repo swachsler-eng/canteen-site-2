@@ -257,11 +257,17 @@ export function render(root, session) {
       });
     });
 
-    root.querySelector('#complete-sale').addEventListener('click', () => {
-      const result = checkout(selectedCamperId, lines);
+    const saleButton = root.querySelector('#complete-sale');
+    saleButton.addEventListener('click', async () => {
+      // Writing to the database takes a moment. Disable the button so an
+      // impatient double-click can't ring the sale up twice.
+      saleButton.disabled = true;
+      saleButton.textContent = 'Working…';
 
-      // The store refuses the sale itself as well, so a balance can't slip
-      // negative even if this screen somehow let the button through.
+      const result = await checkout(selectedCamperId, lines);
+
+      // The store checks the balance against the database too, so a screen
+      // showing stale numbers still can't overdraw an account.
       if (!result.ok) {
         toast('Sale declined — not enough balance.', { error: true });
         draw();

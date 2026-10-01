@@ -238,7 +238,7 @@ export function render(root, session) {
 
     box.querySelector('#cancel-add').addEventListener('click', close);
 
-    box.querySelector('#add-form').addEventListener('submit', (event) => {
+    box.querySelector('#add-form').addEventListener('submit', async (event) => {
       event.preventDefault();
       const data = new FormData(event.target);
       const firstName = String(data.get('firstName')).trim();
@@ -252,8 +252,7 @@ export function render(root, session) {
       }
 
       const familyChoice = String(data.get('familyChoice'));
-      const camper = addCamper({
-        campId,
+      const camper = await addCamper({
         firstName,
         lastName,
         grade: String(data.get('grade')),
@@ -319,12 +318,12 @@ export function render(root, session) {
         danger: true,
       });
       if (!confirmed) return;
-      resetBalanceToZero(camperId);
+      await resetBalanceToZero(camperId);
       toast(`${camper.firstName}'s balance reset to $0.00.`);
       draw();
     });
 
-    box.querySelector('#balance-form').addEventListener('submit', (event) => {
+    box.querySelector('#balance-form').addEventListener('submit', async (event) => {
       event.preventDefault();
       const data = new FormData(event.target);
       const amount = parseAmount(data.get('amount'));
@@ -338,7 +337,7 @@ export function render(root, session) {
       // Removing more than the camper has lands on $0.00 rather than going
       // negative — the store enforces that floor.
       const delta = data.get('direction') === 'remove' ? -amount : amount;
-      const updated = adjustBalanceByStaff(camperId, delta, String(data.get('note') || '').trim());
+      const updated = await adjustBalanceByStaff(camperId, delta, String(data.get('note') || '').trim());
 
       close();
       toast(`${camper.firstName}'s balance is now ${money(updated.balance)}.`);
@@ -359,7 +358,7 @@ export function render(root, session) {
     });
     if (!confirmed) return;
 
-    deleteCamper(camperId);
+    await deleteCamper(camperId);
     toast(`${camper.firstName} removed.`);
     draw();
   }
