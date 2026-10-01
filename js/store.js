@@ -257,8 +257,12 @@ function campPath(name) {
 
 /* ---- camps (still from the list at the top of this file) ---- */
 
+/* Camps appear in the login dropdown in the order they're listed in
+   CAMP_SEED above, so the FIRST one in that list is what the dropdown
+   starts on. To change which camp is selected by default, move it to the
+   top of CAMP_SEED. */
 export function getAllCamps() {
-  return [...CAMP_SEED].sort((a, b) => collator.compare(a.name, b.name));
+  return [...CAMP_SEED];
 }
 
 export function getCampById(campId) {
