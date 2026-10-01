@@ -94,6 +94,7 @@ const CAMP_SEED = [
       '4': ['Maple', 'Spruce'],
       '5': ['Aspen', 'Hemlock'],
       '6': ['Juniper'],
+      '7': ['Redwood', 'Sequoia']
     },
   },
   {
@@ -103,6 +104,7 @@ const CAMP_SEED = [
       '4': ['Otter', 'Heron'],
       '5': ['Loon', 'Osprey'],
       '6': ['Kingfisher', 'Sandpiper'],
+      '7': ['Eagle', 'Falcon']
     },
   },
 ];
