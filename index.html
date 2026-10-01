@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Canteen</title>
+
+    <!-- A small inline icon for the browser tab, so there's no separate
+         favicon file to keep track of. -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231f4a3c'/><text x='16' y='23' font-size='19' font-family='Georgia,serif' font-weight='700' fill='%23e8a33d' text-anchor='middle'>C</text></svg>"
+    />
+
+    <!-- Two fonts: Fraunces (a display serif) for headings, Inter for body text. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- The header and nav are filled in by app.js depending on who is
+         signed in. The whole page only ever has these three slots. -->
+    <header class="site-header">
+      <div class="header-bar" id="header-bar"></div>
+      <nav class="main-nav hidden" id="main-nav">
+        <div class="nav-inner" id="nav-inner"></div>
+      </nav>
+    </header>
+
+    <!-- Every screen renders into this element. -->
+    <main id="view"></main>
+
+    <!-- Toast confirmations stack up in here. -->
+    <div class="toast-stack" id="toast-stack"></div>
+
+    <!-- type="module" lets the JavaScript files import each other.
+         It requires the page to be served over http:// (a live server),
+         which is how this project is always opened. -->
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>

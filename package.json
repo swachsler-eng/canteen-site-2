@@ -1,0 +1,16 @@
+{
+  "name": "canteen-site-2",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Prepaid balance tracking for a camp canteen",
+  "type": "module",
+  "scripts": {
+    "start": "node serve.mjs",
+    "test": "node test-store.mjs",
+    "screenshot": "node screenshot.mjs http://localhost:3000"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "puppeteer": "^25.11.0"
+  }
+}
